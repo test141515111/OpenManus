@@ -6,11 +6,14 @@ import asyncio
 import base64
 from pathlib import Path
 from quart import Quart, render_template, request, jsonify, send_from_directory
+from quart_cors import cors
 import socketio
 from app.utils.config import load_config
+from webapp.web_search_ui import register_web_search_routes, register_web_search_socketio
 
 # Create Quart app
 app = Quart(__name__, template_folder='templates', static_folder='static')
+app = cors(app, allow_origin="*")
 
 # Create Socket.IO server
 sio = socketio.AsyncServer(async_mode='asgi')
@@ -58,6 +61,18 @@ async def initialize_browser_tool():
 async def index():
     """Render the main page"""
     return await render_template('index.html')
+
+@app.route('/search')
+async def search_page():
+    """Render the search page"""
+    return await render_template('search/index.html')
+
+# Register Web Search Report routes
+@app.before_serving
+async def setup_routes():
+    """Setup routes before serving"""
+    await register_web_search_routes(app)
+    await register_web_search_socketio(sio)
 
 @app.route('/static/<path:path>')
 async def serve_static(path):

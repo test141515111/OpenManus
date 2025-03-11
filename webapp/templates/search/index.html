@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenManus ウェブ検索</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="text-center my-4">
+            <h1>OpenManus ウェブ検索</h1>
+            <p class="lead">ブラウザを使用したウェブ検索と結果レポート</p>
+            <div class="mt-3">
+                <a href="/" class="btn btn-outline-primary me-2">メインページ</a>
+                <a href="/search" class="btn btn-outline-success">ウェブ検索</a>
+            </div>
+        </header>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h2 class="card-title h5">検索クエリを送信</h2>
+                    </div>
+                    <div class="card-body">
+                        <form id="searchForm">
+                            <div class="mb-3">
+                                <label for="queryInput" class="form-label">検索したい内容を入力してください</label>
+                                <textarea id="queryInput" class="form-control" rows="3" placeholder="検索クエリを入力..."></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="numResults" class="form-label">結果の数 (1-5)</label>
+                                <input type="number" id="numResults" class="form-control" min="1" max="5" value="3">
+                            </div>
+                            <div class="mb-3">
+                                <label for="language" class="form-label">言語</label>
+                                <select id="language" class="form-control">
+                                    <option value="ja" selected>日本語</option>
+                                    <option value="en">英語</option>
+                                </select>
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="includeImages" checked>
+                                <label class="form-check-label" for="includeImages">画像を含める</label>
+                            </div>
+                            <div class="alert alert-info">
+                                <small>※ 検索には数秒かかる場合があります。エラーが表示された場合は再度お試しください。</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">検索を実行</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h2 class="card-title h5">検索の状態</h2>
+                    </div>
+                    <div class="card-body">
+                        <div id="statusContainer">
+                            <p>状態: <span id="searchStatus">待機中</span></p>
+                            <p>現在のクエリ: <span id="currentQuery">なし</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h2 class="card-title h5">検索結果</h2>
+                    </div>
+                    <div class="card-body">
+                        <div id="searchResultsContainer">
+                            <p id="noResults">検索結果はありません</p>
+                            <div id="searchResultsList"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h2 class="card-title h5">検索スクリーンショット</h2>
+                    </div>
+                    <div class="card-body">
+                        <div id="screenshotsContainer" class="text-center">
+                            <p id="noScreenshots">スクリーンショットはありません</p>
+                            <div id="screenshotsList"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/search.js"></script>
+</body>
+</html>

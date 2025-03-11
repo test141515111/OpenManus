@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize Socket.IO if available
     let socket = null;
     try {
-        socket = io();
+        socket = io('https://open-manus-app-tunnel-4sdp0fim.devinapps.com', {auth: {token: '60ec76ca6f78611d0a40dfea92490ad0'}}); // Add auth token
         
         // Socket.IO event handlers
         socket.on('connect', function() {
@@ -85,11 +85,9 @@ document.addEventListener('DOMContentLoaded', function() {
             socket.emit('submit_task', { query: query });
         } else {
             // Submit task to API
-            fetch('/api/submit_task', {
+            fetch('https://open-manus-app-tunnel-4sdp0fim.devinapps.com/api/submit_task', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: {'Content-Type': 'application/json', 'Authorization': 'Basic dXNlcjo2MGVjNzZjYTZmNzg2MTFkMGE0MGRmZWE5MjQ5MGFkMA=='},
                 body: JSON.stringify({ query: query })
             })
             .then(response => response.json())
@@ -227,7 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (pollingInterval) clearInterval(pollingInterval);
         
         pollingInterval = setInterval(function() {
-            fetch('/api/task_status')
+            fetch('https://open-manus-app-tunnel-4sdp0fim.devinapps.com/api/task_status', {headers: {'Authorization': 'Basic dXNlcjo2MGVjNzZjYTZmNzg2MTFkMGE0MGRmZWE5MjQ5MGFkMA=='}})
                 .then(response => response.json())
                 .then(data => {
                     updateTaskStatus(data);
@@ -243,7 +241,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Initial status check via HTTP API
-    fetch('/api/task_status')
+    fetch('https://open-manus-app-tunnel-4sdp0fim.devinapps.com/api/task_status', {headers: {'Authorization': 'Basic dXNlcjo2MGVjNzZjYTZmNzg2MTFkMGE0MGRmZWE5MjQ5MGFkMA=='}})
         .then(response => response.json())
         .then(data => {
             if (data.status !== 'idle') {
