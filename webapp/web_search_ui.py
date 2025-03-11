@@ -30,7 +30,7 @@ async def register_web_search_routes(app):
                 return jsonify({"status": "error", "message": "検索結果の数は1から5の間で指定してください"}), 400
             
             # Get the Manus agent from the global context
-            from webapp.async_app import manus_agent, initialize_manus
+            from webapp.app import manus_agent, initialize_manus
             
             try:
                 # Initialize Manus agent if needed
@@ -76,7 +76,7 @@ async def register_web_search_routes(app):
                 response["report"] = result.report
             
             # Notify clients of new report via Socket.IO
-            from webapp.async_app import sio
+            from webapp.app import sio
             await sio.emit('new_search_report', {
                 "query": query,
                 "timestamp": timestamp,
