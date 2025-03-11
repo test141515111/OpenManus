@@ -1,0 +1,17 @@
+[llm]
+provider = "openai"
+model = "gpt-4"
+api_key = "${oepnai_api}"
+base_url = "https://api.openai.com/v1"
+temperature = 0.7
+max_tokens = 4096
+
+[agent]
+name = "manus"
+memory_enabled = true
+
+[tools]
+python_execute = true
+file_saver = true
+browser_use = true
+google_search = true

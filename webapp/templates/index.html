@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenManus ウェブUI</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="text-center my-4">
+            <h1>OpenManus ウェブUI</h1>
+            <p class="lead">ブラウザ機能を持つAIエージェント</p>
+        </header>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h2 class="card-title h5">タスクを送信</h2>
+                    </div>
+                    <div class="card-body">
+                        <form id="taskForm">
+                            <div class="mb-3">
+                                <label for="queryInput" class="form-label">OpenManusに何をさせたいですか？</label>
+                                <textarea id="queryInput" class="form-control" rows="4" placeholder="タスクや質問をここに入力してください..."></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">タスクを送信</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h2 class="card-title h5">タスクの状態</h2>
+                    </div>
+                    <div class="card-body">
+                        <div id="statusContainer">
+                            <p>状態: <span id="taskStatus">待機中</span></p>
+                            <p>現在のタスク: <span id="currentTask">なし</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h2 class="card-title h5">ブラウザのスクリーンショット</h2>
+                    </div>
+                    <div class="card-body">
+                        <div id="screenshotsContainer" class="text-center">
+                            <p id="noScreenshots">スクリーンショットはありません</p>
+                            <div id="screenshotsList"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h2 class="card-title h5">ブラウザの動画</h2>
+                    </div>
+                    <div class="card-body">
+                        <div id="videosContainer" class="text-center">
+                            <p id="noVideos">動画はありません</p>
+                            <div id="videosList"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title h5">タスクの結果</h2>
+                    </div>
+                    <div class="card-body">
+                        <div id="resultsContainer">
+                            <p id="noResults">結果はありません</p>
+                            <div id="resultsList"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
