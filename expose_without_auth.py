@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-import os
-import sys
+"""
+Create a public URL without authentication
+"""
 import subprocess
+import sys
 
-def main():
+def create_public_url():
     """Create a public URL without authentication"""
     try:
         # Use the expose_port command with auth=none parameter
-        cmd = ["expose_port", "local_port=8080", "auth=none"]
+        cmd = ["expose_port", "local_port=8081", "auth=none"]
         print(f"Running command: {' '.join(cmd)}")
         
         result = subprocess.run(
@@ -16,18 +18,31 @@ def main():
             text=True
         )
         
-        print(f"Command output: {result.stdout}")
-        print(f"Command error: {result.stderr}")
-        
-        if result.returncode != 0:
-            print(f"Command failed with return code {result.returncode}")
-            return False
+        # Check if the command was successful
+        if result.returncode == 0:
+            output = result.stdout
+            print(f"Command output: {output}")
             
-        return True
+            # Extract the URL from the output
+            if "URL:" in output:
+                url = output.split("URL:")[1].strip()
+                print(f"Public URL created: {url}")
+                return url
+            else:
+                print("Failed to extract URL from output")
+                return None
+        else:
+            print(f"Error creating public URL: {result.stderr}")
+            return None
     except Exception as e:
-        print(f"Error: {e}")
-        return False
+        print(f"Error creating public URL: {e}")
+        return None
 
 if __name__ == "__main__":
-    success = main()
-    sys.exit(0 if success else 1)
+    url = create_public_url()
+    if url:
+        print(f"OpenManus Web UI is now publicly accessible at: {url}")
+        print("You can access the search page at: {}/search".format(url))
+    else:
+        print("Failed to create public URL")
+        sys.exit(1)

@@ -23,23 +23,6 @@ def ensure_templates():
         if not search_templates_dir.exists():
             search_templates_dir.mkdir(parents=True)
         
-        # Copy templates from build if they exist, otherwise use the originals
-        build_templates = Path("webapp/build/templates")
-        if build_templates.exists():
-            # Copy main index.html if it exists
-            build_index = build_templates / "index.html"
-            if build_index.exists() and not (templates_dir / "index.html").exists():
-                import shutil
-                shutil.copy(build_index, templates_dir / "index.html")
-                print("Copied index.html from build to templates")
-            
-            # Copy search index.html if it exists
-            build_search_index = build_templates / "search" / "index.html"
-            if build_search_index.exists() and not (search_templates_dir / "index.html").exists():
-                import shutil
-                shutil.copy(build_search_index, search_templates_dir / "index.html")
-                print("Copied search/index.html from build to templates")
-        
         return True
     except Exception as e:
         print(f"Error ensuring templates: {e}")
@@ -54,29 +37,6 @@ def ensure_static_files():
         static_dir = Path("webapp/static")
         if not static_dir.exists():
             static_dir.mkdir(parents=True)
-        
-        # Copy static files from build if they exist
-        build_static = Path("webapp/build/static")
-        if build_static.exists():
-            import shutil
-            
-            # Copy script.js if it exists
-            build_script = build_static / "script.js"
-            if build_script.exists() and not (static_dir / "script.js").exists():
-                shutil.copy(build_script, static_dir / "script.js")
-                print("Copied script.js from build to static")
-            
-            # Copy style.css if it exists
-            build_style = build_static / "style.css"
-            if build_style.exists() and not (static_dir / "style.css").exists():
-                shutil.copy(build_style, static_dir / "style.css")
-                print("Copied style.css from build to static")
-            
-            # Copy search.js if it exists
-            build_search = build_static / "search.js"
-            if build_search.exists() and not (static_dir / "search.js").exists():
-                shutil.copy(build_search, static_dir / "search.js")
-                print("Copied search.js from build to static")
         
         return True
     except Exception as e:
@@ -105,7 +65,7 @@ def start_server():
         
         # Start the server in the background
         server_process = subprocess.Popen(
-            ["python", "webapp/run.py"],
+            ["python", "-m", "webapp.run"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -130,9 +90,12 @@ def create_public_url():
         if not start_server():
             return None
         
-        # Expose the port without authentication
+        # Use the expose_port command from Devin
+        cmd = "expose_port local_port=8081 auth=none"
+        print(f"Running command: {cmd}")
+        
         result = subprocess.run(
-            "expose_port local_port=8080 auth=none",
+            cmd,
             shell=True,
             capture_output=True,
             text=True
@@ -141,6 +104,7 @@ def create_public_url():
         # Extract the URL from the result
         if result.returncode == 0:
             output = result.stdout
+            print(f"Command output: {output}")
             if "URL:" in output:
                 url = output.split("URL:")[1].strip()
                 print(f"Public URL created: {url}")

@@ -1,4 +1,3 @@
-// Main script for OpenManus Web Search UI
 document.addEventListener('DOMContentLoaded', function() {
     // DOM elements
     const searchForm = document.getElementById('searchForm');
@@ -9,265 +8,184 @@ document.addEventListener('DOMContentLoaded', function() {
     const submitBtn = document.getElementById('submitBtn');
     const searchStatus = document.getElementById('searchStatus');
     const currentQuery = document.getElementById('currentQuery');
+    const searchResultsContainer = document.getElementById('searchResultsContainer');
     const searchResultsList = document.getElementById('searchResultsList');
-    const screenshotsList = document.getElementById('screenshotsList');
     const noResults = document.getElementById('noResults');
+    const screenshotsContainer = document.getElementById('screenshotsContainer');
+    const screenshotsList = document.getElementById('screenshotsList');
     const noScreenshots = document.getElementById('noScreenshots');
     
-    // Initialize Socket.IO
+    // Initialize Socket.IO if available
     let socket = null;
     try {
         socket = io();
         
         // Socket.IO event handlers
         socket.on('connect', function() {
-            console.log('Connected to server via Socket.IO');
+            console.log('Socket.IO connected');
         });
         
         socket.on('disconnect', function() {
-            console.log('Disconnected from server');
+            console.log('Socket.IO disconnected');
         });
         
         socket.on('new_search_report', function(data) {
-            console.log('New search report received:', data);
-            displaySearchReport(data);
+            updateSearchResults(data);
         });
         
-        socket.on('web_search_error', function(data) {
-            console.log('Search error received:', data);
-            displaySearchError(data);
+        socket.on('error', function(data) {
+            showError(data.message);
         });
+        
+        console.log('Socket.IO initialized');
     } catch (e) {
-        console.log('Socket.IO not available, falling back to HTTP API');
+        console.error('Socket.IO initialization failed:', e);
         socket = null;
     }
     
-    // Submit search form
+    // Form submission handler
     searchForm.addEventListener('submit', function(e) {
         e.preventDefault();
         
+        // Get the search parameters
         const query = queryInput.value.trim();
-        if (!query) {
-            alert('検索クエリを入力してください');
-            return;
-        }
-        
-        // Validate number of results
         const numResultsValue = parseInt(numResults.value);
-        if (isNaN(numResultsValue) || numResultsValue < 1 || numResultsValue > 5) {
-            alert('結果の数は1から5の間で指定してください');
+        const languageValue = language.value;
+        const includeImagesValue = includeImages.checked;
+        
+        if (!query) {
+            showError('検索クエリを入力してください');
             return;
         }
         
-        // Disable form while search is running
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '検索中... <span class="loading"></span>';
-        
-        // Update UI immediately
-        searchStatus.textContent = '検索中';
-        searchStatus.className = 'status-running';
-        currentQuery.textContent = query;
-        
-        // Clear previous results
-        searchResultsList.innerHTML = '';
-        screenshotsList.innerHTML = '';
-        noResults.style.display = 'block';
-        noScreenshots.style.display = 'block';
-        
-        // Prepare search parameters
-        const searchParams = {
-            query: query,
-            num_results: numResultsValue,
-            language: language.value,
-            include_images: includeImages.checked
-        };
-        
-        // Submit search via HTTP API directly for more reliable results
-        submitViaHttp(searchParams);
-        
-        // Display immediate feedback
-        searchStatus.textContent = '検索中';
-        searchStatus.className = 'status-running';
-        currentQuery.textContent = query;
-        
-        // Log the search attempt
-        console.log('Search submitted via HTTP API:', searchParams);
-        
-        // Function to submit via HTTP API
-        function submitViaHttp(params) {
-            fetch('/api/web_search/report', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(params)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    // Search submitted successfully
-                    console.log('Search submitted successfully via HTTP');
-                    displaySearchReport(data);
-                } else {
-                    console.error('API error:', data.message);
-                    displaySearchError({message: data.message || 'タスクの送信中にエラーが発生しました'});
-                }
-            })
-            .catch(error => {
-                console.error('Fetch error:', error);
-                displaySearchError({message: 'タスクの送信中にエラーが発生しました'});
-                resetForm();
-            });
+        if (isNaN(numResultsValue) || numResultsValue < 1 || numResultsValue > 5) {
+            showError('検索結果の数は1から5の間で指定してください');
+            return;
         }
+        
+        // Disable the submit button
+        submitBtn.disabled = true;
+        
+        // Update the search status
+        searchStatus.textContent = '検索中';
+        currentQuery.textContent = query;
+        
+        // Clear the search results and screenshots
+        noResults.style.display = 'block';
+        searchResultsList.innerHTML = '';
+        noScreenshots.style.display = 'block';
+        screenshotsList.innerHTML = '';
+        
+        // Submit the search
+        submitSearch(query, numResultsValue, languageValue, includeImagesValue);
     });
     
-    // Display search report
-    function displaySearchReport(data) {
-        // Update status
-        searchStatus.textContent = '完了';
-        searchStatus.className = 'status-completed';
-        
-        // Update current query
-        if (data.query) {
-            currentQuery.textContent = data.query;
-        }
-        
-        // Reset form
-        resetForm();
-        
-        // Display search results
+    // Submit search function
+    function submitSearch(query, numResultsValue, languageValue, includeImagesValue) {
+        // Submit search to API
+        fetch('/api/web_search/report', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                query: query,
+                num_results: numResultsValue,
+                language: languageValue,
+                include_images: includeImagesValue
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'error') {
+                showError(data.message);
+                submitBtn.disabled = false;
+                searchStatus.textContent = 'エラー';
+            } else {
+                // Update the search results
+                updateSearchResults({
+                    query: query,
+                    timestamp: data.timestamp,
+                    report: data.report
+                });
+                
+                // Reset the form
+                submitBtn.disabled = false;
+                searchStatus.textContent = '完了';
+            }
+        })
+        .catch(error => {
+            showError('検索の実行中にエラーが発生しました: ' + error.message);
+            submitBtn.disabled = false;
+            searchStatus.textContent = 'エラー';
+        });
+    }
+    
+    // Update search results function
+    function updateSearchResults(data) {
         if (data.report) {
-            displayResults(data.report);
+            noResults.style.display = 'none';
+            searchResultsList.innerHTML = formatReport(data.report);
+            
+            // Update screenshots if available
+            if (data.report.screenshots && data.report.screenshots.length > 0) {
+                noScreenshots.style.display = 'none';
+                screenshotsList.innerHTML = '';
+                
+                data.report.screenshots.forEach(function(screenshot) {
+                    const img = document.createElement('img');
+                    img.src = screenshot;
+                    img.alt = '検索スクリーンショット';
+                    img.className = 'img-fluid mb-3';
+                    screenshotsList.appendChild(img);
+                });
+            } else {
+                noScreenshots.style.display = 'block';
+                screenshotsList.innerHTML = '';
+            }
         } else {
             noResults.style.display = 'block';
             searchResultsList.innerHTML = '';
-        }
-    }
-    
-    // Display search error
-    function displaySearchError(data) {
-        // Update status
-        searchStatus.textContent = '失敗';
-        searchStatus.className = 'status-failed';
-        
-        // Reset form
-        resetForm();
-        
-        // Display error message
-        noResults.style.display = 'none';
-        searchResultsList.innerHTML = '<div class="alert alert-danger">' + (data.message || 'タスクの送信中にエラーが発生しました') + '</div>';
-        
-        // Log error to console
-        console.error('Search error:', data);
-    }
-    
-    // Display search results
-    function displayResults(report) {
-        noResults.style.display = 'none';
-        searchResultsList.innerHTML = '';
-        
-        // Display search screenshot if available
-        if (report.search_screenshot) {
-            noScreenshots.style.display = 'none';
-            
-            const screenshotItem = document.createElement('div');
-            screenshotItem.className = 'screenshot-item';
-            
-            const timestamp = document.createElement('div');
-            timestamp.className = 'timestamp';
-            timestamp.textContent = report.timestamp || '検索結果';
-            
-            const img = document.createElement('img');
-            img.src = 'data:image/png;base64,' + report.search_screenshot;
-            img.alt = '検索結果のスクリーンショット';
-            img.className = 'screenshot-img';
-            
-            screenshotItem.appendChild(timestamp);
-            screenshotItem.appendChild(img);
-            
-            screenshotsList.appendChild(screenshotItem);
+            noScreenshots.style.display = 'block';
+            screenshotsList.innerHTML = '';
         }
         
-        // Create results container
-        const resultsContainer = document.createElement('div');
-        resultsContainer.className = 'search-results';
-        
-        // Add search metadata
-        const metaInfo = document.createElement('div');
-        metaInfo.className = 'search-meta';
-        metaInfo.innerHTML = `
-            <p><strong>検索クエリ:</strong> ${report.query}</p>
-            <p><strong>検索時間:</strong> ${report.timestamp}</p>
-            <p><strong>結果数:</strong> ${report.num_results}</p>
-        `;
-        resultsContainer.appendChild(metaInfo);
-        
-        // Add individual results
-        if (report.results && report.results.length > 0) {
-            report.results.forEach((result, index) => {
-                const resultItem = document.createElement('div');
-                resultItem.className = 'search-result-item';
-                
-                // Result header
-                const resultHeader = document.createElement('div');
-                resultHeader.className = 'result-header';
-                resultHeader.innerHTML = `
-                    <h3 class="result-title">${index + 1}. ${result.title || '無題'}</h3>
-                    <a href="${result.url}" target="_blank" class="result-url">${result.url}</a>
-                `;
-                resultItem.appendChild(resultHeader);
-                
-                // Result snippet
-                if (result.snippet) {
-                    const snippet = document.createElement('div');
-                    snippet.className = 'result-snippet';
-                    snippet.textContent = result.snippet;
-                    resultItem.appendChild(snippet);
-                }
-                
-                // Result content
-                if (result.content) {
-                    const content = document.createElement('div');
-                    content.className = 'result-content';
-                    content.textContent = result.content;
-                    resultItem.appendChild(content);
-                }
-                
-                // Result screenshot
-                if (result.screenshot) {
-                    const screenshotContainer = document.createElement('div');
-                    screenshotContainer.className = 'result-screenshot';
-                    
-                    const img = document.createElement('img');
-                    img.src = 'data:image/png;base64,' + result.screenshot;
-                    img.alt = result.title || 'ページのスクリーンショット';
-                    img.className = 'result-img';
-                    
-                    screenshotContainer.appendChild(img);
-                    resultItem.appendChild(screenshotContainer);
-                }
-                
-                // Result error if any
-                if (result.error) {
-                    const error = document.createElement('div');
-                    error.className = 'result-error';
-                    error.textContent = result.error;
-                    resultItem.appendChild(error);
-                }
-                
-                resultsContainer.appendChild(resultItem);
-            });
-        } else {
-            const noResultsMsg = document.createElement('div');
-            noResultsMsg.className = 'no-results-message';
-            noResultsMsg.textContent = '検索結果が見つかりませんでした。';
-            resultsContainer.appendChild(noResultsMsg);
-        }
-        
-        searchResultsList.appendChild(resultsContainer);
-    }
-    
-    // Reset form after search completion
-    function resetForm() {
+        // Enable the submit button
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '検索を実行';
+    }
+    
+    // Format report function
+    function formatReport(report) {
+        let html = '';
+        
+        if (report.summary) {
+            html += '<div class="mb-4"><h3 class="h6">検索サマリー</h3><p>' + report.summary + '</p></div>';
+        }
+        
+        if (report.results && report.results.length > 0) {
+            html += '<div class="mb-4"><h3 class="h6">検索結果</h3><ul class="list-group">';
+            
+            report.results.forEach(function(result, index) {
+                html += '<li class="list-group-item">';
+                html += '<h4 class="h6">' + (index + 1) + '. ' + (result.title || '無題') + '</h4>';
+                
+                if (result.url) {
+                    html += '<p><a href="' + result.url + '" target="_blank">' + result.url + '</a></p>';
+                }
+                
+                if (result.snippet) {
+                    html += '<p>' + result.snippet + '</p>';
+                }
+                
+                html += '</li>';
+            });
+            
+            html += '</ul></div>';
+        }
+        
+        return html;
+    }
+    
+    // Show error function
+    function showError(message) {
+        alert('エラー: ' + message);
     }
 });

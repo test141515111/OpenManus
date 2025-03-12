@@ -1,17 +1,19 @@
-// Main script for OpenManus Web UI
 document.addEventListener('DOMContentLoaded', function() {
     // DOM elements
     const taskForm = document.getElementById('taskForm');
-    const queryInput = document.getElementById('queryInput');
+    const taskInput = document.getElementById('taskInput');
     const submitBtn = document.getElementById('submitBtn');
     const taskStatus = document.getElementById('taskStatus');
     const currentTask = document.getElementById('currentTask');
-    const screenshotsList = document.getElementById('screenshotsList');
-    const videosList = document.getElementById('videosList');
-    const resultsList = document.getElementById('resultsList');
-    const noScreenshots = document.getElementById('noScreenshots');
-    const noVideos = document.getElementById('noVideos');
+    const resultContainer = document.getElementById('resultContainer');
+    const resultContent = document.getElementById('resultContent');
     const noResults = document.getElementById('noResults');
+    const screenshotsContainer = document.getElementById('screenshotsContainer');
+    const screenshotsList = document.getElementById('screenshotsList');
+    const noScreenshots = document.getElementById('noScreenshots');
+    
+    // Task status polling interval
+    let pollingInterval = null;
     
     // Initialize Socket.IO if available
     let socket = null;
@@ -20,68 +22,61 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Socket.IO event handlers
         socket.on('connect', function() {
-            console.log('Connected to server via Socket.IO');
-            // Request current status after connection
-            socket.emit('request_task_status');
+            console.log('Socket.IO connected');
         });
         
         socket.on('disconnect', function() {
-            console.log('Disconnected from server');
+            console.log('Socket.IO disconnected');
         });
         
-        socket.on('task_update', function(data) {
-            console.log('Task update received:', data);
+        socket.on('status_update', function(data) {
             updateTaskStatus(data);
         });
         
-        socket.on('new_screenshot', function(data) {
-            console.log('New screenshot received');
-            addScreenshot(data);
+        socket.on('error', function(data) {
+            showError(data.message);
         });
         
-        socket.on('new_video', function(data) {
-            console.log('New video received');
-            addVideo(data);
-        });
-        
-        socket.on('task_status_update', function(data) {
-            console.log('Status update received:', data);
-            updateTaskStatus(data);
-        });
+        console.log('Socket.IO initialized');
     } catch (e) {
-        console.log('Socket.IO not available, falling back to HTTP API');
+        console.error('Socket.IO initialization failed:', e);
         socket = null;
     }
     
-    // Submit task form
+    // Form submission handler
     taskForm.addEventListener('submit', function(e) {
         e.preventDefault();
         
-        const query = queryInput.value.trim();
+        // Get the task from the input
+        const query = taskInput.value.trim();
+        
         if (!query) {
-            alert('タスクや質問を入力してください');
+            showError('タスクを入力してください');
             return;
         }
         
-        // Disable form while task is running
+        // Disable the submit button
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '送信中... <span class="loading"></span>';
         
-        // Update UI immediately
-        taskStatus.textContent = 'Running';
+        // Update the task status
+        taskStatus.textContent = '実行中';
         currentTask.textContent = query;
         
-        // Clear previous results
+        // Clear the result and screenshots
+        noResults.style.display = 'block';
+        resultContent.innerHTML = '';
+        noScreenshots.style.display = 'block';
         screenshotsList.innerHTML = '';
-        if (videosList) videosList.innerHTML = '';
-        resultsList.innerHTML = '';
         
-        if (noScreenshots) noScreenshots.style.display = 'block';
-        if (noVideos) noVideos.style.display = 'block';
-        if (noResults) noResults.style.display = 'block';
-        
-        // Submit task via Socket.IO if available, otherwise use HTTP API
+        // Submit the task
+        submitTask(query);
+    });
+    
+    // Submit task function
+    function submitTask(query) {
         if (socket && socket.connected) {
+            // Submit task via Socket.IO
+            console.log('Submitting task via Socket.IO:', query);
             socket.emit('submit_task', { query: query });
         } else {
             // Submit task to API
@@ -92,135 +87,98 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => response.json())
             .then(data => {
-                if (data.status === 'success') {
-                    // Task submitted successfully
-                    console.log('Task submitted successfully');
-                    // Start polling for updates
-                    startPolling();
+                if (data.status === 'error') {
+                    showError(data.message);
+                    submitBtn.disabled = false;
                 } else {
-                    alert('エラー: ' + data.message);
-                    resetForm();
+                    // Start polling for task status
+                    startPolling();
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
-                alert('タスクの送信中にエラーが発生しました');
-                resetForm();
+                showError('タスクの送信中にエラーが発生しました: ' + error.message);
+                submitBtn.disabled = false;
             });
         }
-    });
+    }
     
-   // Function to update task status
+    // Update task status function
     function updateTaskStatus(data) {
-        const status = data.status;
+        // Update the task status
+        taskStatus.textContent = getStatusText(data.status);
+        currentTask.textContent = data.current_task || 'なし';
         
-        // Translate status to Japanese
-        let statusText = '待機中';
-        if (status === 'running') statusText = '実行中';
-        else if (status === 'completed') statusText = '完了';
-        else if (status === 'failed') statusText = '失敗';
-        else if (status === 'idle') statusText = '待機中';
-        
-        taskStatus.textContent = statusText;
-        
-        if (data.task) {
-            currentTask.textContent = data.task;
+        // Update the result
+        if (data.result) {
+            noResults.style.display = 'none';
+            resultContent.innerHTML = formatResult(data.result);
+        } else {
+            noResults.style.display = 'block';
+            resultContent.innerHTML = '';
         }
         
-        // Update screenshots if available
+        // Update the screenshots
         if (data.screenshots && data.screenshots.length > 0) {
+            noScreenshots.style.display = 'none';
             screenshotsList.innerHTML = '';
-            data.screenshots.forEach(screenshot => {
-                addScreenshot(screenshot);
-            });
-        }
-        
-        // Update videos if available
-        if (data.videos && data.videos.length > 0 && videosList) {
-            videosList.innerHTML = '';
-            data.videos.forEach(video => {
-                addVideo(video);
-            });
-        }
-        
-        // Update results if available
-        if (data.results) {
-            if (noResults) noResults.style.display = 'none';
-            resultsList.innerHTML = '<pre>' + JSON.stringify(data.results, null, 2) + '</pre>';
-        }
-        
-        if (status === 'completed' || status === 'failed') {
-            resetForm();
             
-            if (data.error) {
-                if (noResults) noResults.style.display = 'none';
-                resultsList.innerHTML = '<div class="error">エラー: ' + data.error + '</div>';
+            data.screenshots.forEach(function(screenshot) {
+                const img = document.createElement('img');
+                img.src = screenshot;
+                img.alt = 'スクリーンショット';
+                img.className = 'img-fluid mb-3';
+                screenshotsList.appendChild(img);
+            });
+        } else {
+            noScreenshots.style.display = 'block';
+            screenshotsList.innerHTML = '';
+        }
+        
+        // Enable the submit button if the task is completed or failed
+        if (data.status === 'completed' || data.status === 'error') {
+            submitBtn.disabled = false;
+            
+            // Stop polling
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
             }
         }
     }
     
-    // Function to add a screenshot
-    function addScreenshot(data) {
-        if (noScreenshots) noScreenshots.style.display = 'none';
-        
-        const screenshotItem = document.createElement('div');
-        screenshotItem.className = 'screenshot-item';
-        
-        const timestamp = document.createElement('div');
-        timestamp.className = 'timestamp';
-        timestamp.textContent = data.timestamp;
-        
-        const img = document.createElement('img');
-        img.src = `data:image/png;base64,${data.data}`;
-        img.alt = 'ブラウザのスクリーンショット';
-        img.className = 'screenshot-img';
-        
-        screenshotItem.appendChild(timestamp);
-        screenshotItem.appendChild(img);
-        
-        // Add to the beginning of the list (newest first)
-        screenshotsList.insertBefore(screenshotItem, screenshotsList.firstChild);
+    // Format result function
+    function formatResult(result) {
+        if (typeof result === 'string') {
+            return '<p>' + result.replace(/\n/g, '<br>') + '</p>';
+        } else if (typeof result === 'object') {
+            return '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+        } else {
+            return '<p>' + result + '</p>';
+        }
     }
     
-    // Function to add a video
-    function addVideo(data) {
-        if (!videosList) return;
-        
-        if (noVideos) noVideos.style.display = 'none';
-        
-        const videoItem = document.createElement('div');
-        videoItem.className = 'video-item';
-        
-        const timestamp = document.createElement('div');
-        timestamp.className = 'timestamp';
-        timestamp.textContent = data.timestamp;
-        
-        const video = document.createElement('video');
-        video.controls = true;
-        video.autoplay = false;
-        video.className = 'video-player';
-        
-        const source = document.createElement('source');
-        source.src = `data:video/webm;base64,${data.data}`;
-        source.type = 'video/webm';
-        
-        video.appendChild(source);
-        videoItem.appendChild(timestamp);
-        videoItem.appendChild(video);
-        
-        // Add to the beginning of the list (newest first)
-        videosList.insertBefore(videoItem, videosList.firstChild);
+    // Get status text function
+    function getStatusText(status) {
+        switch (status) {
+            case 'idle':
+                return '待機中';
+            case 'running':
+                return '実行中';
+            case 'completed':
+                return '完了';
+            case 'error':
+                return 'エラー';
+            default:
+                return status;
+        }
     }
     
-    // Reset form after task completion
-    function resetForm() {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = 'タスクを送信';
+    // Show error function
+    function showError(message) {
+        alert('エラー: ' + message);
     }
     
-    // Poll for updates if Socket.IO is not available
-    let pollingInterval = null;
-    
+    // Start polling function
     function startPolling() {
         if (pollingInterval) clearInterval(pollingInterval);
         
@@ -229,13 +187,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(response => response.json())
                 .then(data => {
                     updateTaskStatus(data);
-                    
-                    if (data.status === 'completed' || data.status === 'failed') {
-                        clearInterval(pollingInterval);
-                    }
                 })
                 .catch(error => {
-                    console.error('Error polling for updates:', error);
+                    console.error('Error polling task status:', error);
                 });
         }, 2000);
     }
@@ -253,6 +207,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error('Error fetching initial task status:', error);
+            console.error('Error checking initial task status:', error);
         });
 });

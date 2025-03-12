@@ -87,3 +87,5 @@ async def register_web_search_routes(app):
             
         except Exception as e:
             return jsonify({"status": "error", "message": f"検索レポートの生成に失敗しました: {str(e)}"}), 500
+    
+    return app
