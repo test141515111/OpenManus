@@ -30,7 +30,11 @@ async def register_web_search_routes(app):
                 return jsonify({"status": "error", "message": "検索結果の数は1から5の間で指定してください"}), 400
             
             # Get the Manus agent from the global context
-            from webapp.app import manus_agent, initialize_manus
+            try:
+                from webapp.app import manus_agent, initialize_manus
+            except ImportError:
+                # Try relative import
+                from app import manus_agent, initialize_manus
             
             try:
                 # Initialize Manus agent if needed
@@ -87,3 +91,5 @@ async def register_web_search_routes(app):
             
         except Exception as e:
             return jsonify({"status": "error", "message": f"検索レポートの生成に失敗しました: {str(e)}"}), 500
+
+    return app

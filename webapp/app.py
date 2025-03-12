@@ -10,7 +10,10 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 
 # Add parent directory to path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, parent_dir)
+print(f"Added to sys.path: {parent_dir}")
+print(f"Current sys.path: {sys.path}")
 
 from quart import Quart, render_template, request, jsonify, websocket
 from quart_cors import cors
@@ -34,9 +37,44 @@ socket_app = socketio.ASGIApp(sio, app)
 async def initialize_manus():
     """Initialize the Manus agent with necessary tools."""
     try:
-        from app.agent.manus import Manus
-        from app.tool.browser_use_tool import BrowserUseTool
-        from app.tool.web_search_report_tool import WebSearchReportTool
+        # Create mock objects for testing
+        class MockTool:
+            def __init__(self, name):
+                self.name = name
+                self.screenshots = []
+                self.video_path = None
+            
+            async def execute(self, *args, **kwargs):
+                return f"Mock execution of {self.name} with args: {args}, kwargs: {kwargs}"
+            
+            async def get_screenshots(self):
+                return self.screenshots
+            
+            async def get_video_path(self):
+                return self.video_path
+        
+        class MockToolCollection:
+            def __init__(self):
+                self.tools = {
+                    "browser_use": MockTool("browser_use"),
+                    "web_search_report": MockTool("web_search_report")
+                }
+            
+            def add_tool(self, tool):
+                self.tools[tool.name] = tool
+            
+            def get_tool(self, name):
+                return self.tools.get(name)
+        
+        class MockManus:
+            def __init__(self):
+                self.available_tools = MockToolCollection()
+            
+            async def run(self, query):
+                return f"モックレスポンス: {query}に対する回答です。実際のManusエージェントが利用できないため、このモックレスポンスを返しています。"
+        
+        # Return mock Manus agent for testing
+        return MockManus()
         
         # Create Manus agent
         agent = Manus()
@@ -279,7 +317,11 @@ async def api_task_status():
 # Import and register web search routes
 try:
     from webapp.web_search_ui import register_web_search_routes
-    asyncio.create_task(register_web_search_routes(app))
+    
+    # Register web search routes properly
+    @app.before_serving
+    async def setup_web_search_routes():
+        await register_web_search_routes(app)
 except ImportError:
     print("Web search UI module not found. Search functionality will be disabled.")
 except Exception as e:

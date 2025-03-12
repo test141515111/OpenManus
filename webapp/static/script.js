@@ -3,7 +3,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const taskForm = document.getElementById('taskForm');
     const taskInput = document.getElementById('taskInput');
     const submitBtn = document.getElementById('submitBtn');
-    const taskStatus = document.getElementById('taskStatus');
+    const sampleBtn = document.getElementById('sampleBtn');
+    const taskStatus = document.getElementById('status');
     const currentTask = document.getElementById('currentTask');
     const resultContainer = document.getElementById('resultContainer');
     const resultContent = document.getElementById('resultContent');
@@ -43,6 +44,13 @@ document.addEventListener('DOMContentLoaded', function() {
         socket = null;
     }
     
+    // Sample button handler
+    if (sampleBtn) {
+        sampleBtn.addEventListener('click', function() {
+            taskInput.value = 'モテる方法を教えて';
+        });
+    }
+    
     // Form submission handler
     taskForm.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -58,15 +66,26 @@ document.addEventListener('DOMContentLoaded', function() {
         // Disable the submit button
         submitBtn.disabled = true;
         
-        // Update the task status
+        // Update UI immediately to show task is being processed
         taskStatus.textContent = '実行中';
         currentTask.textContent = query;
+        resultContent.innerHTML = '<div class="alert alert-info">処理中...</div>';
         
         // Clear the result and screenshots
-        noResults.style.display = 'block';
-        resultContent.innerHTML = '';
+        noResults.style.display = 'none';
         noScreenshots.style.display = 'block';
         screenshotsList.innerHTML = '';
+        
+        // Clear video if it exists
+        const videoElement = document.getElementById('videoElement');
+        const noVideo = document.getElementById('noVideo');
+        if (videoElement) {
+            videoElement.style.display = 'none';
+            videoElement.src = '';
+        }
+        if (noVideo) {
+            noVideo.style.display = 'block';
+        }
         
         // Submit the task
         submitTask(query);
@@ -85,19 +104,34 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ task: query })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok: ' + response.status);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.status === 'error') {
                     showError(data.message);
                     submitBtn.disabled = false;
+                    
+                    // Update status to show error
+                    taskStatus.textContent = 'エラー';
+                    currentTask.textContent = query;
                 } else {
                     // Start polling for task status
                     startPolling();
                 }
             })
             .catch(error => {
+                console.error('Error submitting task:', error);
                 showError('タスクの送信中にエラーが発生しました: ' + error.message);
                 submitBtn.disabled = false;
+                
+                // Update status to show error
+                taskStatus.textContent = 'エラー';
+                currentTask.textContent = query;
+                resultContent.innerHTML = '<div class="alert alert-danger">エラー: ' + error.message + '</div>';
             });
         }
     }
@@ -176,6 +210,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Show error function
     function showError(message) {
         alert('エラー: ' + message);
+        console.error('Error:', message);
+        
+        // Update UI to show error state
+        if (taskStatus) {
+            taskStatus.textContent = 'エラー';
+        }
     }
     
     // Start polling function

@@ -130,10 +130,9 @@ def create_public_url():
         if not start_server():
             return None
         
-        # Expose the port without authentication
+        # Expose the port without authentication using the correct command format
         result = subprocess.run(
-            "expose_port local_port=8080 auth=none",
-            shell=True,
+            ["expose_port", "local_port=8080", "auth=none"],
             capture_output=True,
             text=True
         )

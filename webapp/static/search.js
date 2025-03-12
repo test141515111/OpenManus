@@ -66,13 +66,13 @@ document.addEventListener('DOMContentLoaded', function() {
         // Disable the submit button
         submitBtn.disabled = true;
         
-        // Update the search status
+        // Update UI immediately to show search is being processed
         searchStatus.textContent = '検索中';
         currentQuery.textContent = query;
+        searchResultsList.innerHTML = '<div class="alert alert-info">検索中です。しばらくお待ちください...</div>';
         
         // Clear the search results and screenshots
-        noResults.style.display = 'block';
-        searchResultsList.innerHTML = '';
+        noResults.style.display = 'none';
         noScreenshots.style.display = 'block';
         screenshotsList.innerHTML = '';
         
@@ -187,5 +187,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Show error function
     function showError(message) {
         alert('エラー: ' + message);
+        console.error('Error:', message);
+        
+        // Update UI to show error state
+        if (searchStatus) {
+            searchStatus.textContent = 'エラー';
+        }
+        
+        // Display error in results area
+        if (searchResultsList) {
+            searchResultsList.innerHTML = '<div class="alert alert-danger">エラー: ' + message + '</div>';
+            noResults.style.display = 'none';
+        }
     }
 });
